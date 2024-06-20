@@ -230,7 +230,7 @@ class BitReader:
         if bitsize <= 64:
             return self.unpack_from_int(fullbytes, partbits, sizeint)
         else:
-            pass
+            raise ValueError("Data size too large")
 
 
 class v3i:
@@ -290,19 +290,13 @@ def unpack_frame(fd, packed_data, crds):
     prevcoord = v3i(0)
     all_coords = []
     while i < fd.natoms:
-        write = True
         thiscrds = v3i(0)
         if not large:
-            if write:
-                thiscrds = v3i(br.unpack(bitsize, vsizeint))
-            else:
-                br.skip(bitsize)
+            thiscrds = v3i(br.unpack(bitsize, vsizeint))
         else:
             for ibig in range(3):
-                if write:
-                    thiscrds[ibig] = br.read_int(bitsizeint[ibig])
-                else:
-                    br.skip(bitsizeint[ibig])
+                thiscrds[ibig] = br.read_int(bitsizeint[ibig])
+
         thiscrds += vminint
         prevcoord = thiscrds
         i += 1
@@ -322,22 +316,18 @@ def unpack_frame(fd, packed_data, crds):
                 break
             for k in range(0, run, 3):
                 thissmallcrds = v3i(0)
-                if write:
-                    thissmallcrds = v3i(br.unpack(int(smallidx), szsmall3))
-                    tmp = prevcoord - vsmallnum
-                    thissmallcrds += tmp
-                    if k == 0:
-                        prevcoord, thissmallcrds = thissmallcrds, prevcoord
-                        all_coords.append(prevcoord.flt_convert())
-                    else:
-                        prevcoord = thissmallcrds
-                    all_coords.append(thissmallcrds.flt_convert())
+                thissmallcrds = v3i(br.unpack(int(smallidx), szsmall3))
+                tmp = prevcoord - vsmallnum
+                thissmallcrds += tmp
+                if k == 0:
+                    prevcoord, thissmallcrds = thissmallcrds, prevcoord
+                    all_coords.append(prevcoord.flt_convert())
                 else:
-                    br.skip(int(smallidx))
+                    prevcoord = thissmallcrds
+                all_coords.append(thissmallcrds.flt_convert())
                 i += 1
         else:
-            if write:
-                all_coords.append(thiscrds.flt_convert())
+            all_coords.append(thiscrds.flt_convert())
         smallidx += is_smaller
         smallidx = int(smallidx)
         if is_smaller < 0:
@@ -369,7 +359,7 @@ class XTCReader:
     def _align4(cls, l):
         return (l + cls.alignmentBytesMinusOne) & ~cls.alignmentBytesMinusOne
 
-    def __init__(self, fname, beg=-1, end=-1, dt=-1, nt=4):
+    def __init__(self, fname, beg=-1, end=-1, dt=-1, nt=1):
         self.end = end
         self._frd = frame_data()
         self._frd.nt = nt
@@ -501,6 +491,7 @@ class XTCReader:
         if hdr_only:
             self._fxtc.seek(self.datalen, os.SEEK_CUR)
         else:
+            print("------------------------------ ", self.t, " ------------------------------")
             self._decompess()
         if no_check:
             return True
@@ -576,3 +567,4 @@ def main():
 
 
 main()
+
